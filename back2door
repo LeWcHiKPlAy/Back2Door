@@ -1,0 +1,942 @@
+-- ================= КЛИЕНТСКИЙ СКРИПТ (исправленный) =================
+local player = game.Players.LocalPlayer
+local execEvent = game.ReplicatedStorage:FindFirstChild("ServerExec")
+
+if not execEvent then
+    warn("ServerExec не найден")
+    return
+end
+
+if player.PlayerGui:FindFirstChild("Back2DoorGUI") then
+    player.PlayerGui.Back2DoorGUI:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "Back2DoorGUI"
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+
+local BG = Color3.new(0, 0, 0)
+local BG2 = Color3.new(0.06, 0.06, 0.06)
+local BG3 = Color3.new(0.12, 0.12, 0.12)
+local GREEN = Color3.new(0, 0.5, 0)
+local GREEN_BRIGHT = Color3.new(0, 1, 0)
+local RED = Color3.new(0.8, 0, 0)
+local WHITE = Color3.new(1, 1, 1)
+local GRAY = Color3.new(0.4, 0.4, 0.4)
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 620, 0, 600)
+mainFrame.Position = UDim2.new(0.5, -310, 0.5, -300)
+mainFrame.BackgroundColor3 = BG
+mainFrame.BorderColor3 = GREEN
+mainFrame.BorderSizePixel = 2
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = mainFrame
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 34)
+titleBar.BackgroundColor3 = BG2
+titleBar.BorderColor3 = GREEN
+titleBar.BorderSizePixel = 1
+titleBar.Parent = mainFrame
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 4)
+titleCorner.Parent = titleBar
+
+local titleText = Instance.new("TextLabel")
+titleText.Size = UDim2.new(1, -80, 1, 0)
+titleText.Position = UDim2.new(0, 12, 0, 0)
+titleText.BackgroundTransparency = 1
+titleText.Text = "Back2Door by lewchik_play"
+titleText.TextColor3 = GREEN_BRIGHT
+titleText.Font = Enum.Font.SourceSansBold
+titleText.TextSize = 17
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.Parent = titleBar
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -34, 0, 3)
+closeBtn.BackgroundColor3 = BG3
+closeBtn.BorderColor3 = GREEN
+closeBtn.BorderSizePixel = 1
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = RED
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextSize = 14
+closeBtn.Parent = titleBar
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 4)
+closeCorner.Parent = closeBtn
+
+local tabNames = {
+    "Admin", "Players", "World", "Chaos",
+    "Player", "Troll", "Spawn", "Editor", "Info"
+}
+
+local tabFrame = Instance.new("Frame")
+tabFrame.Size = UDim2.new(1, 0, 0, 30)
+tabFrame.Position = UDim2.new(0, 0, 0, 34)
+tabFrame.BackgroundColor3 = BG2
+tabFrame.BorderColor3 = GREEN
+tabFrame.BorderSizePixel = 1
+tabFrame.Parent = mainFrame
+
+local tabButtons = {}
+local contentFrames = {}
+
+for i, name in ipairs(tabNames) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1/#tabNames, -2, 1, 0)
+    btn.Position = UDim2.new((i-1)/#tabNames + 0.001, 0, 0, 0)
+    btn.BackgroundColor3 = (i == 1) and BG3 or BG2
+    btn.BorderColor3 = GREEN
+    btn.BorderSizePixel = 1
+    btn.Text = name
+    btn.TextColor3 = GREEN_BRIGHT
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 11
+    btn.Parent = tabFrame
+    table.insert(tabButtons, btn)
+
+    local content = Instance.new("ScrollingFrame")
+    content.Size = UDim2.new(1, -10, 1, -75)
+    content.Position = UDim2.new(0, 5, 0, 70)
+    content.BackgroundTransparency = 1
+    content.BorderSizePixel = 0
+    content.ScrollBarThickness = 6
+    content.Visible = (i == 1)
+    content.Parent = mainFrame
+    table.insert(contentFrames, content)
+
+    btn.MouseButton1Click:Connect(function()
+        for j, b in ipairs(tabButtons) do
+            b.BackgroundColor3 = (j == i) and BG3 or BG2
+        end
+        for j, f in ipairs(contentFrames) do
+            f.Visible = (j == i)
+        end
+        if i == 2 then
+            updatePlayersList()
+        end
+    end)
+end
+
+local function addButton(parent, text, yPos, action, args, color, widthScale)
+    widthScale = widthScale or 0.9
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(widthScale, -20, 0, 28)
+    btn.Position = UDim2.new((1 - widthScale)/2, 10, 0, yPos)
+    btn.BackgroundColor3 = color or BG3
+    btn.BorderColor3 = GREEN
+    btn.BorderSizePixel = 1
+    btn.Text = text
+    btn.TextColor3 = WHITE
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    btn.Parent = parent
+    btn.MouseButton1Click:Connect(function()
+        execEvent:FireServer({action = action, args = args or {}})
+    end)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 4)
+    corner.Parent = btn
+    return btn
+end
+
+local function addInputButton(parent, label, placeholder, yPos, action)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0.9, -20, 0, 32)
+    frame.Position = UDim2.new(0, 10, 0, yPos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local input = Instance.new("TextBox")
+    input.Size = UDim2.new(0.6, -5, 1, 0)
+    input.Position = UDim2.new(0, 0, 0, 0)
+    input.BackgroundColor3 = BG2
+    input.BorderColor3 = GREEN
+    input.BorderSizePixel = 1
+    input.PlaceholderText = placeholder
+    input.Text = ""
+    input.TextColor3 = WHITE
+    input.Font = Enum.Font.SourceSans
+    input.TextSize = 14
+    input.Parent = frame
+    local inputCorner = Instance.new("UICorner")
+    inputCorner.CornerRadius = UDim.new(0, 4)
+    inputCorner.Parent = input
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.35, -5, 1, 0)
+    btn.Position = UDim2.new(0.65, 5, 0, 0)
+    btn.BackgroundColor3 = GREEN
+    btn.BorderColor3 = GREEN_BRIGHT
+    btn.BorderSizePixel = 1
+    btn.Text = label
+    btn.TextColor3 = WHITE
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    btn.Parent = frame
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.Parent = btn
+
+    btn.MouseButton1Click:Connect(function()
+        local val = input.Text
+        if val ~= "" then
+            execEvent:FireServer({action = action, args = {val}})
+            input.Text = ""
+        end
+    end)
+    return frame
+end
+
+local function addSlider(parent, label, yPos, minVal, maxVal, step, action)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0.9, -20, 0, 40)
+    frame.Position = UDim2.new(0, 10, 0, yPos)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local labelObj = Instance.new("TextLabel")
+    labelObj.Size = UDim2.new(0.2, 0, 0.5, 0)
+    labelObj.Position = UDim2.new(0, 0, 0, 0)
+    labelObj.BackgroundTransparency = 1
+    labelObj.Text = label
+    labelObj.TextColor3 = WHITE
+    labelObj.Font = Enum.Font.SourceSansBold
+    labelObj.TextSize = 14
+    labelObj.TextXAlignment = Enum.TextXAlignment.Left
+    labelObj.Parent = frame
+
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Size = UDim2.new(0.12, 0, 0.5, 0)
+    valueLabel.Position = UDim2.new(0.88, 0, 0, 0)
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.Text = tostring(minVal)
+    valueLabel.TextColor3 = GREEN_BRIGHT
+    valueLabel.Font = Enum.Font.SourceSansBold
+    valueLabel.TextSize = 14
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    valueLabel.Parent = frame
+
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(0.6, 0, 0.4, 0)
+    sliderBg.Position = UDim2.new(0.22, 0, 0.5, 0)
+    sliderBg.BackgroundColor3 = BG3
+    sliderBg.BorderColor3 = GREEN
+    sliderBg.BorderSizePixel = 1
+    sliderBg.Parent = frame
+    local bgCorner = Instance.new("UICorner")
+    bgCorner.CornerRadius = UDim.new(0, 3)
+    bgCorner.Parent = sliderBg
+
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new(0, 0, 1, 0)
+    sliderFill.BackgroundColor3 = GREEN
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBg
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(0, 3)
+    fillCorner.Parent = sliderFill
+
+    local sliderBtn = Instance.new("TextButton")
+    sliderBtn.Size = UDim2.new(0, 16, 1.5, 0)
+    sliderBtn.Position = UDim2.new(0, -8, -0.25, 0)
+    sliderBtn.BackgroundColor3 = GREEN_BRIGHT
+    sliderBtn.BorderColor3 = WHITE
+    sliderBtn.BorderSizePixel = 1
+    sliderBtn.Text = ""
+    sliderBtn.Parent = sliderBg
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 3)
+    btnCorner.Parent = sliderBtn
+
+    local currentValue = minVal
+    local dragging = false
+
+    local function updateSlider(inputPos)
+        local bgPos = sliderBg.AbsolutePosition.X
+        local bgSize = sliderBg.AbsoluteSize.X
+        local pos = math.clamp((inputPos - bgPos) / bgSize, 0, 1)
+        local value = minVal + (maxVal - minVal) * pos
+        value = math.round(value / step) * step
+        value = math.clamp(value, minVal, maxVal)
+        currentValue = value
+        sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+        sliderBtn.Position = UDim2.new(pos, -8, -0.25, 0)
+        valueLabel.Text = string.format("%.2f", value)
+        execEvent:FireServer({action = action, args = {tostring(value)}})
+    end
+
+    sliderBtn.MouseButton1Down:Connect(function() dragging = true end)
+    sliderBtn.MouseButton1Up:Connect(function() dragging = false end)
+    sliderBtn.MouseLeave:Connect(function() dragging = false end)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input, gameProcessed)
+        if dragging and not gameProcessed and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateSlider(input.Position.X)
+        end
+    end)
+
+    return frame
+end
+
+local allIDs = {
+    {"Тролл Фейс", "16354043139"},
+    {"Сабакаа", "9835676490"},
+    {"Арбуz", "18689041820"},
+    {"Шрек-трамп", "11999260348"},
+    {"poopгайчик", "10207060725"},
+    {"Черепашка нинзя", "13994307916"},
+    {"Робукс", "14975815411"},
+    {"Обычный Шрек", "12225918757"},
+    {"БАРСУК", "15910559926"},
+    {"Мр Бист", "12938050584"},
+    {"Айшруспид", "11849480042"},
+    {"Кай Синат", "6933174263"},
+    {"testeze17 nat", "105045600745209"},
+    {"testeze17 stand", "82691024613179"},
+    {"testeze17 zombie", "132766975016724"},
+    {"testeze17 skybox", "119568028163204"},
+    {"c00lkidd", "158118263"},
+}
+
+local testeze17IDs = {
+    {"testeze17 nat", "105045600745209"},
+    {"testeze17 stand", "82691024613179"},
+    {"testeze17 zombie", "132766975016724"},
+    {"testeze17 skybox", "119568028163204"},
+}
+
+-- Обновлённый список пресетов музыки (включая новые)
+local musicPresets = {
+    {"Угарный рикастли", "129806919865399"},
+    {"evade", "127449749451497"},
+    {"ghost train", "135648556340834"},
+    {"spooky scary skeletons", "123941904914612", "0.1"},
+    {"Мистер Дудец", "98183643507899", "0.1"},
+    {"Bye Bye There! (pizza tower)", "110016073928544", "0.1"},
+    {"Overdose casino (buckshot)", "77577435010217", "0.1"},
+    {"the Noise (pizza tower)", "129595396054697", "0.33"},
+    {"Bye Bye There! (pizza tower, good quality)", "75841845928716", "0.5"},
+    {"Pizza Tower OST - Pizza Engineer (Peppibot Factory)", "96919065362267", "0.5"},
+    {"Pizza Tower OST - Peppino's Sauce Machine (Peppibot Factory B)", "94419979497163", "0.5"},
+    {"Мистер дудец Good quality", "96614077611801", "0.4"},
+    {"Взлом телеканала ТНТ (чо за имба)", "78530163451497", "0.5"},
+    {"Pizza Tower - Pillar John's Revenge (Lap 3 Fanmade OST)", "117625291976289", "0.5"},
+}
+
+-- === ADMIN ===
+local y = 5
+addButton(contentFrames[1], "Kill All", y, "kill_all", {})
+y = y + 34
+addButton(contentFrames[1], "Kick All", y, "kick_all", {})
+y = y + 34
+addButton(contentFrames[1], "Teleport All to Me", y, "teleport_all_to_me", {})
+y = y + 34
+addButton(contentFrames[1], "Clear World", y, "clear_world", {})
+y = y + 34
+addButton(contentFrames[1], "Reset Server", y, "reset_server", {})
+y = y + 34
+addButton(contentFrames[1], "Shutdown", y, "shutdown", {})
+y = y + 34
+
+-- Добавляем поле ввода имени "Писать от лица"
+local nameFrame = Instance.new("Frame")
+nameFrame.Size = UDim2.new(0.9, -20, 0, 32)
+nameFrame.Position = UDim2.new(0, 10, 0, y)
+nameFrame.BackgroundTransparency = 1
+nameFrame.Parent = contentFrames[1]
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Size = UDim2.new(0.25, 0, 1, 0)
+nameLabel.Position = UDim2.new(0, 0, 0, 0)
+nameLabel.BackgroundTransparency = 1
+nameLabel.Text = "Писать от лица:"
+nameLabel.TextColor3 = WHITE
+nameLabel.Font = Enum.Font.SourceSansBold
+nameLabel.TextSize = 14
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.Parent = nameFrame
+
+local nameInput = Instance.new("TextBox")
+nameInput.Size = UDim2.new(0.7, -10, 1, 0)
+nameInput.Position = UDim2.new(0.3, 10, 0, 0)
+nameInput.BackgroundColor3 = BG2
+nameInput.BorderColor3 = GREEN
+nameInput.BorderSizePixel = 1
+nameInput.PlaceholderText = "Имя (можно пустым)"
+nameInput.Text = ""
+nameInput.TextColor3 = WHITE
+nameInput.Font = Enum.Font.SourceSans
+nameInput.TextSize = 14
+nameInput.Parent = nameFrame
+local nameInputCorner = Instance.new("UICorner")
+nameInputCorner.CornerRadius = UDim.new(0, 4)
+nameInputCorner.Parent = nameInput
+
+y = y + 38
+
+-- Кнопка Message All с учётом имени
+local msgAllBtn = Instance.new("TextButton")
+msgAllBtn.Size = UDim2.new(0.9, -20, 0, 28)
+msgAllBtn.Position = UDim2.new(0, 10, 0, y)
+msgAllBtn.BackgroundColor3 = BG3
+msgAllBtn.BorderColor3 = GREEN
+msgAllBtn.BorderSizePixel = 1
+msgAllBtn.Text = "Message All"
+msgAllBtn.TextColor3 = WHITE
+msgAllBtn.Font = Enum.Font.SourceSansBold
+msgAllBtn.TextSize = 14
+msgAllBtn.Parent = contentFrames[1]
+local msgAllCorner = Instance.new("UICorner")
+msgAllCorner.CornerRadius = UDim.new(0, 4)
+msgAllCorner.Parent = msgAllBtn
+msgAllBtn.MouseButton1Click:Connect(function()
+    local name = nameInput.Text
+    local text = "Всем привет!"
+    local finalText = (name ~= "" and name..": "..text or text)
+    execEvent:FireServer({action = "message_all", args = {finalText}})
+end)
+y = y + 34
+
+-- Кнопка Hint All с учётом имени
+local hintAllBtn = Instance.new("TextButton")
+hintAllBtn.Size = UDim2.new(0.9, -20, 0, 28)
+hintAllBtn.Position = UDim2.new(0, 10, 0, y)
+hintAllBtn.BackgroundColor3 = BG3
+hintAllBtn.BorderColor3 = GREEN
+hintAllBtn.BorderSizePixel = 1
+hintAllBtn.Text = "Hint All"
+hintAllBtn.TextColor3 = WHITE
+hintAllBtn.Font = Enum.Font.SourceSansBold
+hintAllBtn.TextSize = 14
+hintAllBtn.Parent = contentFrames[1]
+local hintAllCorner = Instance.new("UICorner")
+hintAllCorner.CornerRadius = UDim.new(0, 4)
+hintAllCorner.Parent = hintAllBtn
+hintAllBtn.MouseButton1Click:Connect(function()
+    local name = nameInput.Text
+    local text = "Back2Door message"
+    local finalText = (name ~= "" and name..": "..text or text)
+    execEvent:FireServer({action = "hint_all", args = {finalText}})
+end)
+y = y + 34
+
+-- Custom Hint с учётом имени
+local hintFrame = Instance.new("Frame")
+hintFrame.Size = UDim2.new(0.9, -20, 0, 32)
+hintFrame.Position = UDim2.new(0, 10, 0, y)
+hintFrame.BackgroundTransparency = 1
+hintFrame.Parent = contentFrames[1]
+
+local hintInput = Instance.new("TextBox")
+hintInput.Size = UDim2.new(0.6, -5, 1, 0)
+hintInput.Position = UDim2.new(0, 0, 0, 0)
+hintInput.BackgroundColor3 = BG2
+hintInput.BorderColor3 = GREEN
+hintInput.BorderSizePixel = 1
+hintInput.PlaceholderText = "Текст для Hint"
+hintInput.Text = ""
+hintInput.TextColor3 = WHITE
+hintInput.Font = Enum.Font.SourceSans
+hintInput.TextSize = 14
+hintInput.Parent = hintFrame
+local hintInputCorner = Instance.new("UICorner")
+hintInputCorner.CornerRadius = UDim.new(0, 4)
+hintInputCorner.Parent = hintInput
+
+local hintBtn = Instance.new("TextButton")
+hintBtn.Size = UDim2.new(0.35, -5, 1, 0)
+hintBtn.Position = UDim2.new(0.65, 5, 0, 0)
+hintBtn.BackgroundColor3 = GREEN
+hintBtn.BorderColor3 = GREEN_BRIGHT
+hintBtn.BorderSizePixel = 1
+hintBtn.Text = "Custom Hint"
+hintBtn.TextColor3 = WHITE
+hintBtn.Font = Enum.Font.SourceSansBold
+hintBtn.TextSize = 14
+hintBtn.Parent = hintFrame
+local hintBtnCorner = Instance.new("UICorner")
+hintBtnCorner.CornerRadius = UDim.new(0, 4)
+hintBtnCorner.Parent = hintBtn
+
+hintBtn.MouseButton1Click:Connect(function()
+    local text = hintInput.Text
+    if text ~= "" then
+        local name = nameInput.Text
+        local finalText = (name ~= "" and name..": "..text or text)
+        execEvent:FireServer({action = "custom_hint", args = {finalText}})
+        hintInput.Text = ""
+    end
+end)
+y = y + 38
+
+-- Custom Message с учётом имени (аналогично Custom Hint)
+local msgFrame = Instance.new("Frame")
+msgFrame.Size = UDim2.new(0.9, -20, 0, 32)
+msgFrame.Position = UDim2.new(0, 10, 0, y)
+msgFrame.BackgroundTransparency = 1
+msgFrame.Parent = contentFrames[1]
+
+local msgInput = Instance.new("TextBox")
+msgInput.Size = UDim2.new(0.6, -5, 1, 0)
+msgInput.Position = UDim2.new(0, 0, 0, 0)
+msgInput.BackgroundColor3 = BG2
+msgInput.BorderColor3 = GREEN
+msgInput.BorderSizePixel = 1
+msgInput.PlaceholderText = "Текст для Message"
+msgInput.Text = ""
+msgInput.TextColor3 = WHITE
+msgInput.Font = Enum.Font.SourceSans
+msgInput.TextSize = 14
+msgInput.Parent = msgFrame
+local msgInputCorner = Instance.new("UICorner")
+msgInputCorner.CornerRadius = UDim.new(0, 4)
+msgInputCorner.Parent = msgInput
+
+local msgBtn = Instance.new("TextButton")
+msgBtn.Size = UDim2.new(0.35, -5, 1, 0)
+msgBtn.Position = UDim2.new(0.65, 5, 0, 0)
+msgBtn.BackgroundColor3 = GREEN
+msgBtn.BorderColor3 = GREEN_BRIGHT
+msgBtn.BorderSizePixel = 1
+msgBtn.Text = "Custom Message"
+msgBtn.TextColor3 = WHITE
+msgBtn.Font = Enum.Font.SourceSansBold
+msgBtn.TextSize = 14
+msgBtn.Parent = msgFrame
+local msgBtnCorner = Instance.new("UICorner")
+msgBtnCorner.CornerRadius = UDim.new(0, 4)
+msgBtnCorner.Parent = msgBtn
+
+msgBtn.MouseButton1Click:Connect(function()
+    local text = msgInput.Text
+    if text ~= "" then
+        local name = nameInput.Text
+        local finalText = (name ~= "" and name..": "..text or text)
+        execEvent:FireServer({action = "custom_message", args = {finalText}})
+        msgInput.Text = ""
+    end
+end)
+y = y + 38
+
+contentFrames[1].CanvasSize = UDim2.new(0, 0, y + 30, 0)
+
+-- === PLAYERS ===
+local playersFrame = contentFrames[2]
+local refreshBtn
+
+function updatePlayersList()
+    for _, child in pairs(playersFrame:GetChildren()) do
+        if child ~= refreshBtn then
+            child:Destroy()
+        end
+    end
+    local y = 5
+    addButton(playersFrame, "Teleport All to Me", y, "teleport_all_to_me", {})
+    y = y + 34
+
+    local players = game.Players:GetPlayers()
+    for _, p in ipairs(players) do
+        local name = p.Name
+        local isLocal = (p == player)
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(0.9, -20, 0, 32)
+        row.Position = UDim2.new(0, 10, 0, y)
+        row.BackgroundColor3 = BG2
+        row.BorderColor3 = GREEN
+        row.BorderSizePixel = 1
+        row.Parent = playersFrame
+        local rowCorner = Instance.new("UICorner")
+        rowCorner.CornerRadius = UDim.new(0, 4)
+        rowCorner.Parent = row
+
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
+        nameLabel.Position = UDim2.new(0, 6, 0, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = name .. (isLocal and " ★" or "")
+        nameLabel.TextColor3 = isLocal and GREEN_BRIGHT or WHITE
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.TextSize = 14
+        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        nameLabel.Parent = row
+
+        local tpBtn = Instance.new("TextButton")
+        tpBtn.Size = UDim2.new(0.2, 0, 0.8, 0)
+        tpBtn.Position = UDim2.new(0.42, 4, 0.1, 0)
+        tpBtn.BackgroundColor3 = GREEN
+        tpBtn.BorderColor3 = GREEN_BRIGHT
+        tpBtn.BorderSizePixel = 1
+        tpBtn.Text = "TP to"
+        tpBtn.TextColor3 = WHITE
+        tpBtn.Font = Enum.Font.SourceSansBold
+        tpBtn.TextSize = 11
+        tpBtn.Parent = row
+        local tpCorner = Instance.new("UICorner")
+        tpCorner.CornerRadius = UDim.new(0, 4)
+        tpCorner.Parent = tpBtn
+        tpBtn.MouseButton1Click:Connect(function()
+            execEvent:FireServer({action = "teleport_to_player", args = {name}})
+        end)
+
+        local tpToMeBtn = Instance.new("TextButton")
+        tpToMeBtn.Size = UDim2.new(0.2, 0, 0.8, 0)
+        tpToMeBtn.Position = UDim2.new(0.63, 4, 0.1, 0)
+        tpToMeBtn.BackgroundColor3 = GREEN
+        tpToMeBtn.BorderColor3 = GREEN_BRIGHT
+        tpToMeBtn.BorderSizePixel = 1
+        tpToMeBtn.Text = "TP to Me"
+        tpToMeBtn.TextColor3 = WHITE
+        tpToMeBtn.Font = Enum.Font.SourceSansBold
+        tpToMeBtn.TextSize = 11
+        tpToMeBtn.Parent = row
+        local tpToMeCorner = Instance.new("UICorner")
+        tpToMeCorner.CornerRadius = UDim.new(0, 4)
+        tpToMeCorner.Parent = tpToMeBtn
+        tpToMeBtn.MouseButton1Click:Connect(function()
+            execEvent:FireServer({action = "teleport_player_to_me", args = {name}})
+        end)
+
+        if not isLocal then
+            local kickBtn = Instance.new("TextButton")
+            kickBtn.Size = UDim2.new(0.15, 0, 0.8, 0)
+            kickBtn.Position = UDim2.new(0.84, 4, 0.1, 0)
+            kickBtn.BackgroundColor3 = RED
+            kickBtn.BorderColor3 = GREEN
+            kickBtn.BorderSizePixel = 1
+            kickBtn.Text = "Kick"
+            kickBtn.TextColor3 = WHITE
+            kickBtn.Font = Enum.Font.SourceSansBold
+            kickBtn.TextSize = 11
+            kickBtn.Parent = row
+            local kickCorner = Instance.new("UICorner")
+            kickCorner.CornerRadius = UDim.new(0, 4)
+            kickCorner.Parent = kickBtn
+            kickBtn.MouseButton1Click:Connect(function()
+                execEvent:FireServer({action = "kick_player", args = {name}})
+            end)
+        end
+        y = y + 38
+    end
+
+    if not refreshBtn then
+        refreshBtn = Instance.new("TextButton")
+        refreshBtn.Size = UDim2.new(0.2, 0, 0, 30)
+        refreshBtn.Position = UDim2.new(0.4, 0, 0, 5)
+        refreshBtn.BackgroundColor3 = BG3
+        refreshBtn.BorderColor3 = GREEN
+        refreshBtn.BorderSizePixel = 1
+        refreshBtn.Text = "🔄 Обновить"
+        refreshBtn.TextColor3 = WHITE
+        refreshBtn.Font = Enum.Font.SourceSansBold
+        refreshBtn.TextSize = 14
+        refreshBtn.Parent = playersFrame
+        local refCorner = Instance.new("UICorner")
+        refCorner.CornerRadius = UDim.new(0, 4)
+        refCorner.Parent = refreshBtn
+        refreshBtn.MouseButton1Click:Connect(updatePlayersList)
+    end
+    playersFrame.CanvasSize = UDim2.new(0, 0, y + 30, 0)
+end
+
+updatePlayersList()
+
+spawn(function()
+    while true do
+        if contentFrames[2].Visible then
+            updatePlayersList()
+        end
+        task.wait(1)
+    end
+end)
+
+-- === WORLD ===
+y = 5
+addSlider(contentFrames[3], "Fog Density", y, 0, 1, 0.01, "set_fog")
+y = y + 46
+addButton(contentFrames[3], "Disco Fog (Toggle)", y, "disco_fog", {})
+y = y + 34
+addButton(contentFrames[3], "Fog On/Off", y, "toggle_fog", {})
+y = y + 34
+addButton(contentFrames[3], "Night", y, "night", {})
+y = y + 34
+addButton(contentFrames[3], "Day", y, "day", {})
+y = y + 34
+addButton(contentFrames[3], "Rain On/Off", y, "toggle_rain", {})
+y = y + 34
+addButton(contentFrames[3], "Storm On/Off", y, "toggle_storm", {})
+y = y + 34
+
+local sepOrb = Instance.new("TextLabel")
+sepOrb.Size = UDim2.new(0.9, 0, 0, 20)
+sepOrb.Position = UDim2.new(0, 10, 0, y)
+sepOrb.BackgroundTransparency = 1
+sepOrb.Text = "── ОРБ ──"
+sepOrb.TextColor3 = GRAY
+sepOrb.Font = Enum.Font.SourceSansBold
+sepOrb.TextSize = 14
+sepOrb.TextXAlignment = Enum.TextXAlignment.Center
+sepOrb.Parent = contentFrames[3]
+y = y + 24
+addButton(contentFrames[3], "Spawn 0RB", y, "spawn_orb", {})
+y = y + 34
+
+local sep1 = Instance.new("TextLabel")
+sep1.Size = UDim2.new(0.9, 0, 0, 20)
+sep1.Position = UDim2.new(0, 10, 0, y)
+sep1.BackgroundTransparency = 1
+sep1.Text = "── ПРЕСЕТЫ СКАЙБОКСОВ ──"
+sep1.TextColor3 = GRAY
+sep1.Font = Enum.Font.SourceSansBold
+sep1.TextSize = 14
+sep1.TextXAlignment = Enum.TextXAlignment.Center
+sep1.Parent = contentFrames[3]
+y = y + 24
+
+for _, data in ipairs(allIDs) do
+    local name, id = data[1], data[2]
+    addButton(contentFrames[3], name, y, "set_skybox", {id})
+    y = y + 32
+end
+addInputButton(contentFrames[3], "Custom Skybox", "Введите ID", y, "set_skybox")
+y = y + 38
+
+local sep2 = Instance.new("TextLabel")
+sep2.Size = UDim2.new(0.9, 0, 0, 20)
+sep2.Position = UDim2.new(0, 10, 0, y)
+sep2.BackgroundTransparency = 1
+sep2.Text = "── ПРЕСЕТЫ ДЕКАЛЕЙ ──"
+sep2.TextColor3 = GRAY
+sep2.Font = Enum.Font.SourceSansBold
+sep2.TextSize = 14
+sep2.TextXAlignment = Enum.TextXAlignment.Center
+sep2.Parent = contentFrames[3]
+y = y + 24
+
+for _, data in ipairs(allIDs) do
+    local name, id = data[1], data[2]
+    addButton(contentFrames[3], name, y, "set_decal", {id})
+    y = y + 32
+end
+local sep2b = Instance.new("TextLabel")
+sep2b.Size = UDim2.new(0.9, 0, 0, 20)
+sep2b.Position = UDim2.new(0, 10, 0, y)
+sep2b.BackgroundTransparency = 1
+sep2b.Text = "── TESTEZE17 ДЕКАЛИ ──"
+sep2b.TextColor3 = GRAY
+sep2b.Font = Enum.Font.SourceSansBold
+sep2b.TextSize = 14
+sep2b.TextXAlignment = Enum.TextXAlignment.Center
+sep2b.Parent = contentFrames[3]
+y = y + 24
+
+for _, data in ipairs(testeze17IDs) do
+    local name, id = data[1], data[2]
+    addButton(contentFrames[3], name, y, "set_decal", {id})
+    y = y + 32
+end
+addInputButton(contentFrames[3], "Custom Decal", "Введите ID", y, "set_decal")
+y = y + 38
+
+local sep3 = Instance.new("TextLabel")
+sep3.Size = UDim2.new(0.9, 0, 0, 20)
+sep3.Position = UDim2.new(0, 10, 0, y)
+sep3.BackgroundTransparency = 1
+sep3.Text = "── ПРЕСЕТЫ ЧАСТИЦ ──"
+sep3.TextColor3 = GRAY
+sep3.Font = Enum.Font.SourceSansBold
+sep3.TextSize = 14
+sep3.TextXAlignment = Enum.TextXAlignment.Center
+sep3.Parent = contentFrames[3]
+y = y + 24
+
+for _, data in ipairs(allIDs) do
+    local name, id = data[1], data[2]
+    addButton(contentFrames[3], name, y, "set_particles", {id})
+    y = y + 32
+end
+addButton(contentFrames[3], "Clear Particles", y, "clear_particles", {})
+y = y + 34
+
+local sep4 = Instance.new("TextLabel")
+sep4.Size = UDim2.new(0.9, 0, 0, 20)
+sep4.Position = UDim2.new(0, 10, 0, y)
+sep4.BackgroundTransparency = 1
+sep4.Text = "── МУЗЫКА ──"
+sep4.TextColor3 = GRAY
+sep4.Font = Enum.Font.SourceSansBold
+sep4.TextSize = 14
+sep4.TextXAlignment = Enum.TextXAlignment.Center
+sep4.Parent = contentFrames[3]
+y = y + 24
+
+for _, data in ipairs(musicPresets) do
+    local name, id, speed = data[1], data[2], data[3]
+    if speed then
+        addButton(contentFrames[3], name, y, "play_music", {id, speed})
+    else
+        addButton(contentFrames[3], name, y, "play_music", {id})
+    end
+    y = y + 32
+end
+addInputButton(contentFrames[3], "Custom Music", "Введите ID", y, "play_music")
+y = y + 38
+addButton(contentFrames[3], "Stop Music", y, "stop_music", {})
+y = y + 34
+addButton(contentFrames[3], "Volume Up", y, "volume_up", {})
+y = y + 34
+addButton(contentFrames[3], "Volume Down", y, "volume_down", {})
+y = y + 34
+
+local sep5 = Instance.new("TextLabel")
+sep5.Size = UDim2.new(0.9, 0, 0, 20)
+sep5.Position = UDim2.new(0, 10, 0, y)
+sep5.BackgroundTransparency = 1
+sep5.Text = "── ВРАЩЕНИЕ МИРА ──"
+sep5.TextColor3 = GRAY
+sep5.Font = Enum.Font.SourceSansBold
+sep5.TextSize = 14
+sep5.TextXAlignment = Enum.TextXAlignment.Center
+sep5.Parent = contentFrames[3]
+y = y + 24
+
+addButton(contentFrames[3], "Smooth Rotate All", y, "smooth_rotate_all", {})
+y = y + 34
+addButton(contentFrames[3], "Rotate ABSOLUTE ALL!", y, "rotate_absolute_all", {})
+y = y + 34
+contentFrames[3].CanvasSize = UDim2.new(0, 0, y + 30, 0)
+
+-- === CHAOS ===
+y = 5
+addButton(contentFrames[4], "Tornado Classic", y, "tornado_classic", {})
+y = y + 34
+addButton(contentFrames[4], "Tornado Funnel", y, "tornado_funnel", {})
+y = y + 34
+addButton(contentFrames[4], "Fire Tornado", y, "fire_tornado", {})
+y = y + 34
+addButton(contentFrames[4], "Double Tornado", y, "double_tornado", {})
+y = y + 34
+addButton(contentFrames[4], "Mega World Tornado (x4 Radius)", y, "mega_tornado", {})
+y = y + 34
+addButton(contentFrames[4], "Mega World Tornado (x8 Radius)", y, "mega_tornado_8x", {})
+y = y + 34
+addButton(contentFrames[4], "Falling Blocks", y, "falling_blocks", {})
+y = y + 34
+addButton(contentFrames[4], "Explosion Wave", y, "explosion_wave", {})
+y = y + 34
+contentFrames[4].CanvasSize = UDim2.new(0, 0, y + 30, 0)
+
+-- === PLAYER ===
+y = 5
+addInputButton(contentFrames[5], "Set Speed", "Скорость", y, "set_speed")
+y = y + 38
+addInputButton(contentFrames[5], "Set Jump", "Прыжок", y, "set_jump")
+y = y + 38
+addButton(contentFrames[5], "God Mode", y, "god_mode", {})
+y = y + 34
+addButton(contentFrames[5], "Fling Aura On/Off", y, "fling_aura_toggle", {})
+y = y + 34
+addSlider(contentFrames[5], "Aura Radius", y, 1, 50, 1, "set_aura_radius")
+y = y + 46
+addButton(contentFrames[5], "Unlock Mouse", y, "unlock_mouse", {})
+y = y + 34
+addButton(contentFrames[5], "Lock Mouse", y, "lock_mouse", {})
+y = y + 34
+addButton(contentFrames[5], "Fix Mouse", y, "fix_mouse", {})
+y = y + 34
+contentFrames[5].CanvasSize = UDim2.new(0, 0, y + 30, 0)
+
+-- === TROLL ===
+y = 5
+addButton(contentFrames[6], "Random Teleport", y, "random_teleport", {})
+y = y + 34
+addButton(contentFrames[6], "Reverse Controls", y, "reverse_controls", {})
+y = y + 34
+addButton(contentFrames[6], "Lava Floor", y, "lava_floor", {})
+y = y + 34
+contentFrames[6].CanvasSize = UDim2.new(0, 0, y + 30, 0)
+
+-- === SPAWN ===
+y = 5
+addButton(contentFrames[7], "Spawn Bots", y, "spawn_bots", {})
+y = y + 34
+addButton(contentFrames[7], "Spawn Flying Objects", y, "spawn_flying_objects", {})
+y = y + 34
+contentFrames[7].CanvasSize = UDim2.new(0, 0, y + 30, 0)
+
+-- === EDITOR ===
+y = 5
+addInputButton(contentFrames[8], "Set Size All", "Множитель", y, "set_size_all")
+y = y + 38
+addInputButton(contentFrames[8], "Set Transparency All", "0-1", y, "set_transparency_all")
+y = y + 38
+addInputButton(contentFrames[8], "Set Color All", "R,G,B", y, "set_color_all")
+y = y + 38
+addButton(contentFrames[8], "Give Asset 142785488", y, "give_asset", {"142785488"})
+y = y + 34
+addButton(contentFrames[8], "Give HD Admin", y, "give_asset", {"857927023"})
+y = y + 34
+addButton(contentFrames[8], "Give Admin babax gun", y, "give_asset", {"11561537267"})
+y = y + 34
+addButton(contentFrames[8], "Give Nuke", y, "give_asset", {"10694662894"})
+y = y + 34
+addButton(contentFrames[8], "Give Classic sword", y, "give_asset", {"47433"})
+y = y + 34
+addButton(contentFrames[8], "Give kohi admin", y, "give_asset", {"172732271"})
+y = y + 34
+addButton(contentFrames[8], "Set coolkidd skybox", y, "set_skybox", {"134894044978656"})
+y = y + 34
+addButton(contentFrames[8], "Spawn c00lkidd killer XD", y, "spawn_model", {"72797226092664"})
+y = y + 34
+contentFrames[8].CanvasSize = UDim2.new(0, 0, y + 30, 0)
+
+-- === INFO ===
+y = 5
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(0.9, -20, 0, 300)
+infoLabel.Position = UDim2.new(0, 10, 0, y)
+infoLabel.BackgroundColor3 = BG2
+infoLabel.BorderColor3 = GREEN
+infoLabel.BorderSizePixel = 1
+infoLabel.Text = ""
+infoLabel.TextColor3 = WHITE
+infoLabel.Font = Enum.Font.SourceSans
+infoLabel.TextSize = 14
+infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+infoLabel.TextYAlignment = Enum.TextYAlignment.Top
+infoLabel.Parent = contentFrames[9]
+local infoCorner = Instance.new("UICorner")
+infoCorner.CornerRadius = UDim.new(0, 4)
+infoCorner.Parent = infoLabel
+
+spawn(function()
+    while true do
+        local players = game.Players:GetPlayers()
+        local playerCount = #players
+        local time = game.Lighting.TimeOfDay
+        local fps = 1 / game:GetService("RunService").RenderStepped:Wait()
+        local info = string.format(
+            "Информация о сервере:\n\nКоличество игроков: %d\nТекущее время: %s\nFPS: %.2f\n\nИгроки:\n",
+            playerCount, time, fps
+        )
+        for _, p in ipairs(players) do
+            info = info .. "• " .. p.Name .. "\n"
+        end
+        infoLabel.Text = info
+        task.wait(1)
+    end
+end)
+
+contentFrames[9].CanvasSize = UDim2.new(0, 0, 400, 0)
